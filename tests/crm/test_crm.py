@@ -258,6 +258,11 @@ def verify_thresholds(duthost, asichost, **kwargs):
                 kwargs["th_hi"] = used_percent
                 loganalyzer.expect_regex = [EXPECT_EXCEEDED]
             elif key == "clear_percentage":
+                # If use percentage < 1 then transition to Exceed never happen so skip clear check.
+                if used_percent < 1:
+                    logger.warning("The used percentage for {} is {} and verification for clear_percentage is skipped" \
+                               .format(kwargs["crm_cli_res"], used_percent))
+                    continue
                 if used_percent >= 100:
                     logger.warning("The used percentage for {} is {} and verification for clear_percentage is skipped" \
                                .format(kwargs["crm_cli_res"], used_percent))

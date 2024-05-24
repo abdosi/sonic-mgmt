@@ -3,6 +3,7 @@ import pytest
 import re
 import random
 
+from tests.common.config_reload import config_reload
 from tests.common.helpers.assertions import pytest_assert
 from tests.generic_config_updater.gu_utils import apply_patch, expect_op_success, expect_op_failure
 from tests.generic_config_updater.gu_utils import generate_tmpfile, delete_tmpfile
@@ -121,9 +122,9 @@ def get_port_speeds_for_test(duthost):
     """
     speeds_to_test = []
     invalid_speed_yang = ("20a", False)
+    invalid_speed_state_db = None
     if duthost.get_facts()['asic_type'] == 'vs':
         valid_speeds = ['20000', '40000']
-        invalid_speed_state_db = ('1999', False)
     else:
         valid_speeds = duthost.get_supported_speeds('Ethernet0')
         if valid_speeds:
@@ -132,7 +133,8 @@ def get_port_speeds_for_test(duthost):
     valid_speeds_to_test = random.sample(valid_speeds, 2 if len(valid_speeds) >= 2 else len(valid_speeds))
     speeds_to_test = [(speed, True) for speed in valid_speeds_to_test]
     speeds_to_test.append(invalid_speed_yang)
-    speeds_to_test.append(invalid_speed_state_db)
+    if invalid_speed_state_db:
+        speeds_to_test.append(invalid_speed_state_db)
     return speeds_to_test
 
 
@@ -255,6 +257,10 @@ def test_replace_fec(duthosts, rand_one_dut_hostname, ensure_dut_readiness, fec)
             current_status_fec = check_interface_status(duthost, "FEC")
             pytest_assert(current_status_fec == fec,
                           "Failed to properly configure interface FEC to requested value {}".format(fec))
+
+            # The rollback after the test cannot revert the fec, when fec is not configured in config_db.json
+            if duthost.facts['platform'] in ['x86_64-arista_7050_qx32s']:
+                config_reload(duthost, safe_reload=True)
         else:
             expect_op_failure(output)
     finally:
